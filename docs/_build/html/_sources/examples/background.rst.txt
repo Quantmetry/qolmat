@@ -63,7 +63,8 @@ and are correctly imputed: the background --low-rank part-- is correctly retriev
 
 .. code-block:: python
     
-    D, X, A = PcpRPCA(D=M).compute()
-    drawing.plot_images(M, X, A, [1500, 1800, 2800], dimension) 
+    rpca = PcpRPCA().
+    rpca.fit(D=M)
+    drawing.plot_images(M, rpca.X, rpca.A, [1500, 1800, 2800], dimension) 
 
 .. image:: ../images/background_2.png

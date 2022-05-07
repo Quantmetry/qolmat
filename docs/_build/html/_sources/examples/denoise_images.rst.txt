@@ -43,8 +43,9 @@ which are concatenate to form an image.
 
     res = []
     for i in range(noisy_image.shape[2]):
-        _, X, _ = RPCA(D=noisy_image[:,:,i]).compute_rpca()
-        res.append(X)
+        rpca = RPCA()
+        rpca.fit(D=noisy_image[:,:,i])
+        res.append(rpca.X)
     restored_image = np.stack(res, axis=-1).astype(np.uint8)
 
     print(f"similarity score between the original and the noisy image: {utils_images.similarity_images(img, noisy_image)}")

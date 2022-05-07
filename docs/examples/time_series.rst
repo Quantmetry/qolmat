@@ -85,23 +85,24 @@ For the online version, we test with and without a moving window.
 
 .. code-block:: python
 
-    a = PcpRPCA(signal=samples.tolist(), period=25)
-    D, X, A = a.compute()
-    s1_pcp, s2_pcp, s3_pcp = utils.resultRPCA_to_signal(D, X, A, a.ret)
+    a = PcpRPCA(period=25)
+    a.fit(signal=samples.tolist())
+    Afilter, noise = utils.get_anomaly(a.A, a.X, e=2)
+    s1_pcp, s2_pcp, s3_pcp = utils.resultRPCA_to_signal(a.D, a.X, Afilter, a.rest)
 
-    a = TemporalRPCA(signal=samples.tolist(), period=25, lam1=2, lam2=0.3, list_periods=[20], list_etas=[0.01], norm="L2")
-    D, X, A = a.compute()
-    s1_temp, s2_temp, s3v = utils.resultRPCA_to_signal(D, X, A, a.ret)
+    a = TemporalRPCA(period=25, lam1=2, lam2=0.3, list_periods=[20], list_etas=[0.01], norm="L2")
+    a.fit(signal=samples.tolist())
+    s1_temp, s2_temp, s3_temp = utils.resultRPCA_to_signal(a.D, a.X, a.A, a.rest)
 
-    a = OnlineTemporalRPCA(signal=samples.tolist(), period=25, lam1=2, lam2=0.4, list_periods=[20], list_etas=[0.01], norm="L2")
-    a.add_online_params(burnin=0.4, online_list_periods=[20], online_list_etas=[0.2])
-    D, X, A = a.compute_online()
-    s1_on, s2_on, s_on = utils.resultRPCA_to_signal(D, X, A, a.ret)
+    a = OnlineTemporalRPCA(period=25, lam1=2, lam2=0.4, list_periods=[20], list_etas=[0.01], norm="L2",
+                        burnin=0.4, online_list_periods=[20], online_list_etas=[0.2])
+    a.fit(signal=samples.tolist())
+    s1_on, s2_on, s3_on = utils.resultRPCA_to_signal(a.D, a.X, a.A, a.rest)
 
-    a = OnlineTemporalRPCA(signal=samples.tolist(), period=25, lam1=2, lam2=0.4, list_periods=[20], list_etas=[0.01], norm="L2")
-    a.add_online_params(burnin=0.4, nwin=50, online_list_periods=[20], online_list_etas=[0.2])
-    D, X, A = a.compute_online()
-    s1_onw, s2_onw, s_onw = utils.resultRPCA_to_signal(D, X, A, a.ret)
+    a = OnlineTemporalRPCA(period=25, lam1=2, lam2=0.4, list_periods=[20], list_etas=[0.01], norm="L2",
+                        burnin=0.4, nwin=50, online_list_periods=[20], online_list_etas=[0.2])
+    a.fit(signal=samples.tolist())
+    s1_onw, s2_onw, s3_onw = utils.resultRPCA_to_signal(a.D, a.X, a.A, a.rest)
 
 Let's take a look at these results.
 

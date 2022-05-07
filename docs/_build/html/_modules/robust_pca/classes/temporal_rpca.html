@@ -77,6 +77,7 @@
              
   <h1>Source code for robust_pca.classes.temporal_rpca</h1><div class="highlight"><pre>
 <span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span> <span class="nn">re</span> <span class="kn">import</span> <span class="n">X</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">List</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
@@ -124,9 +125,7 @@
     
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">signal</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">period</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">D</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">rank</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">lam1</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">lam2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -138,14 +137,7 @@
         <span class="n">norm</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;L2&quot;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
-        <span class="k">if</span> <span class="p">(</span><span class="n">signal</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">D</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
-                <span class="s2">&quot;You have to provide either a time series (signal) or a matrix (D)&quot;</span>
-            <span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">signal</span> <span class="o">=</span> <span class="n">signal</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">period</span> <span class="o">=</span> <span class="n">period</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">D</span> <span class="o">=</span> <span class="n">D</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">rank</span> <span class="o">=</span> <span class="n">rank</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">lam1</span> <span class="o">=</span> <span class="n">lam1</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">lam2</span> <span class="o">=</span> <span class="n">lam2</span>
@@ -155,8 +147,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">tol</span> <span class="o">=</span> <span class="n">tol</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">norm</span> <span class="o">=</span> <span class="n">norm</span>
-        
-        <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_data</span><span class="p">()</span>
+    
 
     <span class="k">def</span> <span class="nf">_prepare_data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Prepare data fot RPCA computation:</span>
@@ -165,11 +156,11 @@
 <span class="sd">                Impute the nan values if needed</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         
-        <span class="bp">self</span><span class="o">.</span><span class="n">ret</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">D</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">period</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">period</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_period</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">signal</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">D</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">D</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ret</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">signal_to_matrix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">signal</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">period</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">D</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">signal_to_matrix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">signal</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">period</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">initial_D</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">D</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">initial_D_proj</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">impute_nans</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">initial_D</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;median&quot;</span><span class="p">)</span>
@@ -280,6 +271,7 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">X</span> <span class="o">=</span> <span class="n">X</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">A</span> <span class="o">=</span> <span class="n">A</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">errors</span> <span class="o">=</span> <span class="n">errors</span>
         
         <span class="k">return</span> <span class="kc">None</span>
         
@@ -357,18 +349,52 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">X</span> <span class="o">=</span> <span class="n">L</span> <span class="o">@</span> <span class="n">Q</span><span class="o">.</span><span class="n">T</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">A</span> <span class="o">=</span> <span class="n">A</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">errors</span> <span class="o">=</span> <span class="n">errors</span>
         
         <span class="k">return</span> <span class="kc">None</span>
     
-
-    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">get_params</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;period&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">period</span><span class="p">,</span>
+            <span class="s2">&quot;lam1&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">lam1</span><span class="p">,</span>
+            <span class="s2">&quot;lam2&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">lam2</span><span class="p">,</span>
+            <span class="s2">&quot;list_periods&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_periods</span><span class="p">,</span>
+            <span class="s2">&quot;list_etas&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_etas</span><span class="p">,</span>
+            <span class="s2">&quot;maxIter&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">maxIter</span><span class="p">,</span>
+            <span class="s2">&quot;norm&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm</span><span class="p">,</span>
+            <span class="s2">&quot;tol&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tol</span><span class="p">,</span>
+            <span class="s2">&quot;verbose&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span>
+        <span class="p">}</span>
+        
+    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">signal</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">D</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Compute the noisy RPCA with time &quot;penalisations&quot;</span>
 
-<span class="sd">        Returns</span>
-<span class="sd">        -------</span>
-<span class="sd">        Tuple[np.ndarray, np.ndarray, np.ndarray]</span>
-<span class="sd">            observations, low-rank and sparse matrices.</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        signal : Optional[List[float]], optional</span>
+<span class="sd">            list of observations, by default None</span>
+<span class="sd">        D : Optional[np.ndarray], optional</span>
+<span class="sd">            array of observation, by default None</span>
+<span class="sd">            </span>
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        Exception</span>
+<span class="sd">            The user has to give either a signal, either a matrix</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">signal</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">D</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;You have to provide either a time series (signal) or a matrix (D)&quot;</span>
+            <span class="p">)</span>
+            
+        <span class="bp">self</span><span class="o">.</span><span class="n">signal</span> <span class="o">=</span> <span class="n">signal</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">D</span> <span class="o">=</span> <span class="n">D</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_data</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">omega</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">D</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">D</span><span class="p">)</span>
 
@@ -387,8 +413,7 @@
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm</span> <span class="o">==</span> <span class="s2">&quot;L2&quot;</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">compute_L2</span><span class="p">()</span>
         
-
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_D</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">A</span></div>
+        <span class="k">return</span> <span class="kc">None</span></div>
 
 
 <div class="viewcode-block" id="TemporalRPCAHyperparams"><a class="viewcode-back" href="../../../generated/robust_pca.classes.temporal_rpca.TemporalRPCAHyperparams.html#robust_pca.classes.temporal_rpca.TemporalRPCAHyperparams">[docs]</a><span class="k">class</span> <span class="nc">TemporalRPCAHyperparams</span><span class="p">(</span><span class="n">TemporalRPCA</span><span class="p">):</span>
@@ -399,12 +424,39 @@
 <span class="sd">    NoisyRPCA : Type[NoisyRPCA]</span>
 <span class="sd">        [description]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">add_hyperparams</span><span class="p">(</span>
+    
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
+        <span class="n">period</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">rank</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">lam1</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">lam2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">list_periods</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[],</span>
+        <span class="n">list_etas</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[],</span>
+        <span class="n">maxIter</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mf">1e4</span><span class="p">),</span>
+        <span class="n">tol</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1e-6</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">norm</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;L2&quot;</span><span class="p">,</span>
         <span class="n">hyperparams_lam1</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[],</span>
         <span class="n">hyperparams_lam2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[],</span>
         <span class="n">hyperparams_etas</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">[[]],</span>
         <span class="n">cv</span><span class="p">:</span>  <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">period</span><span class="p">,</span> <span class="n">rank</span><span class="p">,</span> <span class="n">lam1</span><span class="p">,</span> <span class="n">lam2</span><span class="p">,</span> <span class="n">list_periods</span><span class="p">,</span> <span class="n">list_etas</span><span class="p">,</span> <span class="n">maxIter</span><span class="p">,</span> <span class="n">tol</span><span class="p">,</span> <span class="n">verbose</span><span class="p">,</span> <span class="n">norm</span>
+        <span class="p">)</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv</span> <span class="o">=</span> <span class="n">cv</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hyperparams_lam1</span> <span class="o">=</span> <span class="n">hyperparams_lam1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hyperparams_lam2</span> <span class="o">=</span> <span class="n">hyperparams_lam2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hyperparams_etas</span> <span class="o">=</span> <span class="n">hyperparams_etas</span>
+    
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_hyperparams</span><span class="p">()</span>
+    
+    
+    
+    <span class="k">def</span> <span class="nf">add_hyperparams</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Define the search space associated to each hyperparameter</span>
 
@@ -417,30 +469,26 @@
 <span class="sd">        hyperparams_etas : Optional[List[List[float]]], optional</span>
 <span class="sd">            list of lists; each sublit contains 2 values: min and max for the search space for the assoiated param eta</span>
 <span class="sd">            by default [[]]</span>
-<span class="sd">        cv: Optional[int], optional</span>
-<span class="sd">            to specify the number of folds</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">cv</span> <span class="o">=</span> <span class="n">cv</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">search_space</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">hyperparams_lam1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hyperparams_lam1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">search_space</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
                 <span class="n">skopt</span><span class="o">.</span><span class="n">space</span><span class="o">.</span><span class="n">Real</span><span class="p">(</span>
-                    <span class="n">low</span><span class="o">=</span><span class="n">hyperparams_lam1</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">high</span><span class="o">=</span><span class="n">hyperparams_lam1</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;lam1&quot;</span>
+                    <span class="n">low</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hyperparams_lam1</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">high</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hyperparams_lam1</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;lam1&quot;</span>
                 <span class="p">)</span>
             <span class="p">)</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">hyperparams_lam2</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hyperparams_lam2</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">search_space</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
                 <span class="n">skopt</span><span class="o">.</span><span class="n">space</span><span class="o">.</span><span class="n">Real</span><span class="p">(</span>
-                    <span class="n">low</span><span class="o">=</span><span class="n">hyperparams_lam2</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">high</span><span class="o">=</span><span class="n">hyperparams_lam2</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;tau2&quot;</span>
+                    <span class="n">low</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hyperparams_lam2</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">high</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hyperparams_lam2</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;tau2&quot;</span>
                 <span class="p">)</span>
             <span class="p">)</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">hyperparams_etas</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># TO DO: more cases</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">hyperparams_etas</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hyperparams_etas</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># TO DO: more cases</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hyperparams_etas</span><span class="p">)):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">search_space</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
                     <span class="n">skopt</span><span class="o">.</span><span class="n">space</span><span class="o">.</span><span class="n">Real</span><span class="p">(</span>
-                        <span class="n">low</span><span class="o">=</span><span class="n">hyperparams_etas</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
-                        <span class="n">high</span><span class="o">=</span><span class="n">hyperparams_etas</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span>
+                        <span class="n">low</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hyperparams_etas</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+                        <span class="n">high</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hyperparams_etas</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span>
                         <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;eta_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
                     <span class="p">)</span>
                 <span class="p">)</span>
@@ -494,7 +542,11 @@
 
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">errors</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">compute_cv</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">signal</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">D</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Decompose a matrix into a low rank part and a sparse part</span>
 <span class="sd">        Hyperparams are set by Bayesian optimisation and cross-validation </span>
 
@@ -503,6 +555,16 @@
 <span class="sd">        Tuple[np.ndarray, np.ndarray]</span>
 <span class="sd">            the low rank matrix and the sparse matrix</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="k">if</span> <span class="p">(</span><span class="n">signal</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">D</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;You have to provide either a time series (signal) or a matrix (D)&quot;</span>
+            <span class="p">)</span>
+            
+        <span class="bp">self</span><span class="o">.</span><span class="n">signal</span> <span class="o">=</span> <span class="n">signal</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">D</span> <span class="o">=</span> <span class="n">D</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_data</span><span class="p">()</span>
         
         <span class="n">res</span> <span class="o">=</span> <span class="n">skopt</span><span class="o">.</span><span class="n">gp_minimize</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">objective</span><span class="p">,</span>
@@ -519,9 +581,11 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">lam</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tau</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">list_etas</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span>
-        <span class="n">D</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">A</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute</span><span class="p">()</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TemporalRPCAHyperparams</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
 
-        <span class="k">return</span> <span class="n">D</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">A</span></div>
+        <span class="k">return</span> <span class="kc">None</span></div>
+    
+    
 
 <div class="viewcode-block" id="OnlineTemporalRPCA"><a class="viewcode-back" href="../../../generated/robust_pca.classes.temporal_rpca.OnlineTemporalRPCA.html#robust_pca.classes.temporal_rpca.OnlineTemporalRPCA">[docs]</a><span class="k">class</span> <span class="nc">OnlineTemporalRPCA</span><span class="p">(</span><span class="n">TemporalRPCA</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;This class implements an online version of Temporal RPCA </span>
@@ -535,41 +599,42 @@
 <span class="sd">    TemporalRPCA : _type_</span>
 <span class="sd">        _description_</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">add_online_params</span><span class="p">(</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">burnin</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">period</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">rank</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">lam1</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">lam2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">list_periods</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[],</span>
+        <span class="n">list_etas</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[],</span>
+        <span class="n">maxIter</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mf">1e4</span><span class="p">),</span>
+        <span class="n">tol</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1e-6</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">norm</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;L2&quot;</span><span class="p">,</span>
+        <span class="n">burnin</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
         <span class="n">nwin</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
         <span class="n">online_lam1</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
         <span class="n">online_lam2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
         <span class="n">online_list_periods</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[],</span>
         <span class="n">online_list_etas</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Add online hyperparams</span>
-
-<span class="sd">        Parameters</span>
-<span class="sd">        ----------</span>
-<span class="sd">        burnin: float</span>
-<span class="sd">            burnin sample size</span>
-<span class="sd">        nwin : int</span>
-<span class="sd">            number of sample to retain if moving windows</span>
-<span class="sd">            nwin &lt; burnin and nwin &gt; max(list_periods)</span>
-<span class="sd">        online_lam1 : float</span>
-<span class="sd">            tuning param for the nuclear norm for the online part</span>
-<span class="sd">        online_lam2 : float</span>
-<span class="sd">            tuning param for the LA norm (anomalies) for the online part</span>
-<span class="sd">        online_list_periods : List[int], optional</span>
-<span class="sd">            list on online periods, by default Optional[List[float]]=[]</span>
-<span class="sd">        online_list_etas : List[float], optional</span>
-<span class="sd">            list on online tuning params for periods, by default Optional[List[float]]=[]</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">burnin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">D</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">burnin</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">period</span><span class="p">,</span> <span class="n">rank</span><span class="p">,</span> <span class="n">lam1</span><span class="p">,</span> <span class="n">lam2</span><span class="p">,</span> <span class="n">list_periods</span><span class="p">,</span> <span class="n">list_etas</span><span class="p">,</span> <span class="n">maxIter</span><span class="p">,</span> <span class="n">tol</span><span class="p">,</span> <span class="n">verbose</span><span class="p">,</span> <span class="n">norm</span>
+        <span class="p">)</span>
+    
+        <span class="bp">self</span><span class="o">.</span><span class="n">burnin</span> <span class="o">=</span> <span class="n">burnin</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">nwin</span> <span class="o">=</span> <span class="n">nwin</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">online_lam1</span> <span class="o">=</span> <span class="n">online_lam1</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">online_lam2</span> <span class="o">=</span> <span class="n">online_lam2</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">online_list_periods</span> <span class="o">=</span> <span class="n">online_list_periods</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">online_list_etas</span> <span class="o">=</span> <span class="n">online_list_etas</span>
+
         
-    <span class="k">def</span> <span class="nf">compute_online</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">signal</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">D</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Compute an online version of RPCA with temporal regularisations</span>
 
 <span class="sd">        Returns</span>
@@ -578,10 +643,21 @@
 <span class="sd">            observations, low-rank and sparse matrices</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
+        <span class="k">if</span> <span class="p">(</span><span class="n">signal</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">D</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;You have to provide either a time series (signal) or a matrix (D)&quot;</span>
+            <span class="p">)</span>
+            
+        <span class="bp">self</span><span class="o">.</span><span class="n">signal</span> <span class="o">=</span> <span class="n">signal</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">D</span> <span class="o">=</span> <span class="n">D</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_data</span><span class="p">()</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">burnin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">D</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">burnin</span><span class="p">)</span>
+
         <span class="n">m</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_D</span><span class="o">.</span><span class="n">shape</span>
         
         <span class="n">a</span> <span class="o">=</span> <span class="n">TemporalRPCA</span><span class="p">(</span>
-                    <span class="n">D</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">D</span><span class="p">[:,:</span><span class="bp">self</span><span class="o">.</span><span class="n">burnin</span><span class="p">],</span>
                     <span class="n">period</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">period</span><span class="p">,</span>
                     <span class="n">lam1</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">lam1</span><span class="p">,</span>
                     <span class="n">lam2</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">lam2</span><span class="p">,</span>
@@ -589,9 +665,13 @@
                     <span class="n">list_etas</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">list_etas</span><span class="p">,</span>
                     <span class="n">maxIter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">maxIter</span><span class="p">,</span>
                     <span class="n">tol</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tol</span><span class="p">,</span>
-                    <span class="n">verbose</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">verbose</span>
+                    <span class="n">verbose</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">,</span>
+                    <span class="n">norm</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">norm</span>
                 <span class="p">)</span>
-        <span class="n">_</span><span class="p">,</span> <span class="n">Lhat</span><span class="p">,</span> <span class="n">Shat</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">compute</span><span class="p">()</span>
+        <span class="n">a</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">D</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">D</span><span class="p">[:,:</span><span class="bp">self</span><span class="o">.</span><span class="n">burnin</span><span class="p">])</span>
+        <span class="n">Lhat</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">X</span>
+        <span class="n">Shat</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">A</span>
+        
         <span class="n">r</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">approx_rank</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">proj_D</span><span class="p">[:,:</span><span class="bp">self</span><span class="o">.</span><span class="n">burnin</span><span class="p">],</span> <span class="n">th</span><span class="o">=</span><span class="mf">0.99</span><span class="p">)</span>
         
         <span class="n">_</span><span class="p">,</span> <span class="n">sigmas_hat</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">svd</span><span class="p">(</span><span class="n">Lhat</span><span class="p">)</span>   
@@ -664,10 +744,31 @@
             <span class="n">U</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">update_col</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">online_lam1</span><span class="p">,</span> <span class="n">U</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="p">)</span>
             <span class="n">Lhat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">Lhat</span><span class="p">,</span> <span class="n">U</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">vi</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">m</span><span class="p">,</span><span class="mi">1</span><span class="p">)))</span>
             
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_D</span><span class="p">,</span> <span class="n">Lhat</span><span class="p">,</span> <span class="n">Shat</span></div>
-
-        
+        <span class="bp">self</span><span class="o">.</span><span class="n">D</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_D</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">X</span> <span class="o">=</span> <span class="n">Lhat</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">A</span> <span class="o">=</span> <span class="n">Shat</span>
+            
+        <span class="k">return</span> <span class="kc">None</span>
     
+    <span class="k">def</span> <span class="nf">get_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;period&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">period</span><span class="p">,</span>
+            <span class="s2">&quot;estimated_rank&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">rank</span><span class="p">,</span>
+            <span class="s2">&quot;lam1&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">lam1</span><span class="p">,</span>
+            <span class="s2">&quot;lam2&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">lam2</span><span class="p">,</span>
+            <span class="s2">&quot;list_periods&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_periods</span><span class="p">,</span>
+            <span class="s2">&quot;list_etas&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_etas</span><span class="p">,</span>
+            <span class="s2">&quot;maxIter&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">maxIter</span><span class="p">,</span>
+            <span class="s2">&quot;tol&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tol</span><span class="p">,</span>
+            <span class="s2">&quot;verbose&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">,</span>
+            <span class="s2">&quot;norm&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm</span><span class="p">,</span>
+            <span class="s2">&quot;burnin&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">burnin</span><span class="p">,</span>
+            <span class="s2">&quot;nwin&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">nwin</span><span class="p">,</span>
+            <span class="s2">&quot;online_lam1&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">online_lam1</span><span class="p">,</span>
+            <span class="s2">&quot;online_lam2&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">online_lam2</span><span class="p">,</span>
+            <span class="s2">&quot;online_list_periods&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">online_list_periods</span><span class="p">,</span>
+            <span class="s2">&quot;online_list_etas&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">online_list_etas</span><span class="p">,</span>
+        <span class="p">}</span></div>
 </pre></div>
 
            </div>
