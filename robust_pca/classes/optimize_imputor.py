@@ -25,7 +25,7 @@ class get_objective:
                  imputor: RPCA,
                  imputor_eval: EvaluateImputor,
                  space,
-                 scoring,
+                 scoring, #rmse
                  exp):
         self.imputor = imputor
         self.imputor_eval = imputor_eval
@@ -38,7 +38,7 @@ class get_objective:
         def obj_func(**all_params):
             
             if self.exp:
-                all_params = dict(map(lambda x: (x[0], np.exp(x[1])), all_params.items()))
+                all_params = dict(map(lambda x: (x[0], np.exp(x[1]*np.log(10))), all_params.items()))
 
             imputor = self.imputor.set_params(**all_params)
             scores = self.imputor_eval.scores_imputor(imputor)
@@ -50,7 +50,7 @@ class get_objective:
 def rpca_optimizer(imputor: RPCA,
                    imputor_eval: EvaluateImputor,
                    space,
-                   scoring,
+                   scoring,  #rmse
                    exp_variables=False,
                    n_random_starts = 10, 
                    epoch = 100,
@@ -89,7 +89,10 @@ def rpca_optimizer(imputor: RPCA,
     best_imputor = imputor.set_params(**best_params)
     gc.collect()
     if return_signal:
-        transform_signal, _, _ = imputor.fit_transform(imputor_eval.signal)
+        if len(imputor_eval.signal.shape) == 1:
+            transform_signal, _, _ = imputor.fit_transform(signal = imputor_eval.signal)
+        else:
+            transform_signal, _, _ = imputor.fit_transform(D = imputor_eval.D)
         return best_imputor, best_score, best_params, transform_signal
     return best_imputor, best_score, best_params
 

@@ -14,20 +14,34 @@ from sklearn.utils import check_random_state, resample
 class EvaluateImputor:
 
     def __init__(self,
-                signal: ArrayLike,
+                signal: ArrayLike = None,
+                D: ArrayLike = None,
                 prop: float = 0.1,
-                cv = 3,
-                random_state: Optional[Union[int, RandomState]] = None):
+                cv: int = 3,
+                random_state: Optional[Union[int, RandomState]] = None
+                ):
+                
+                if (D is None) + (signal is None) != 1:
+                    raise ValueError("Should have only D or Signal")
+                
                 self.signal = signal
-                indices = signal.loc[signal > 0].index
+                self.D = D
+                if self.signal is not None:
+                    indices_to_nan = signal.loc[signal > 0].index
+                elif self.D is not None:
+                    flatten_D = D.flatten()
+                    indices_to_nan = flatten_D.loc[~np.isnan(flatten_D)].index
+                
                 random_state = check_random_state(random_state)
+                
                 nan_subsets = []
+                
                 for _ in range(cv):
                     nan_subsets.append(
                             resample(
-                                indices,
+                                indices_to_nan,
                                 replace=False,
-                                n_samples=floor(len(indices) * prop),
+                                n_samples=floor(len(indices_to_nan) * prop),
                                 random_state=random_state,
                                 stratify=None,
                         )
@@ -43,17 +57,27 @@ class EvaluateImputor:
         return rmse, mae, mape, wmape
 
     def scores_imputor(self, imputor: BaseEstimator, func = eval):
-        transform_signal = self.signal.copy()
+
+        if self.signal is not None:
+            input = self.signal.copy()
+            transform = self.signal.copy()
+        elif self.D is not None:
+            input = self.D.copy()
+            transform = self.D.copy()
         RMSE=[]
         MAE=[]
         MAPE=[]
         WMAPE=[]
 
         for nan_indices in self.nan_subsets:
-            transform_signal.loc[nan_indices] = np.nan
-            impute_signal, _, _ = imputor.fit_transform(transform_signal.values)
-            impute_signal = pd.Series(impute_signal, index = transform_signal.index)
-            rmse, mae, mape, wmape = func(self.signal.loc[nan_indices], impute_signal.loc[nan_indices])
+            if len(transform.shape) == 1:
+                transform.iloc[nan_indices] = np.nan
+                impute, _, _ = imputor.fit_transform(signal = transform.values)
+                impute = pd.Series(impute, index = transform.index)
+            else:
+                transform.flat().iloc[nan_indices] = np.nan
+                impute, _, _ = imputor.fit_transform(D =transform.values)
+            rmse, mae, mape, wmape = func(input.loc[nan_indices], impute.loc[nan_indices])
             RMSE.append(rmse)
             MAE.append(mae)
             MAPE.append(mape)
