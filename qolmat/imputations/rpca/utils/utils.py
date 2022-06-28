@@ -74,7 +74,7 @@ def approx_rank(M: NDArray, threshold: Optional[float] = 0.95) -> int:
     _, svd, _ = np.linalg.svd(M, full_matrices=True)
     nuclear = np.sum(svd)
     cum_sum = np.cumsum([sv / nuclear for sv in svd])
-    return np.argwhere(cum_sum > threshold)[0][0] + 1
+    return np.argwhere(cum_sum >= threshold)[0][0] + 1
 
 
 def proximal_operator(U: NDArray, X: NDArray, threshold: float) -> NDArray:

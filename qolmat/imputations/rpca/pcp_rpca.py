@@ -68,7 +68,6 @@ class PcpRPCA(RPCA):
         signal : NDArray
             Observations
         """
-        self.input_data = "2DArray"
         D_init, n_add_values = self._prepare_data(signal=signal)
         proj_D = utils.impute_nans(D_init, method="median")
 
@@ -105,10 +104,8 @@ class PcpRPCA(RPCA):
             X.flat[-n_add_values:] = np.nan
             A.flat[-n_add_values:] = np.nan
 
-        if self.input_data == "2DArray":
+        if not((len(signal.shape) == 1) or (signal.shape[1] in [0, 1])):
             result = [X, A, errors] + result
-        elif self.input_data == "1DArray":
-            result = [X.flatten(), A.flatten(), errors] + result
         else:
-            raise ValueError("Data shape not recognized")
+            result = [X.flatten(), A.flatten(), errors] + result
         return tuple(result)

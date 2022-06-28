@@ -44,12 +44,15 @@ class RPCA(BaseEstimator, TransformerMixin):
         Get the omega matrix
         Impute the nan values if needed
         """
-        if len(signal.shape) == 1:
+
+        if (len(signal.shape) == 1) or (signal.shape[1] in [0, 1]):
+            if len(signal.shape) == 2:
+                signal = signal.flatten()
+
             self.n_rows = (
                 utils.get_period(signal) if self.n_rows is None else self.n_rows
             )
             D_init, n_add_values = utils.signal_to_matrix(signal, n_rows=self.n_rows)
-            self.input_data = "1DArray"
         else:
             D_init = signal.copy()
             n_add_values = 0
@@ -74,17 +77,14 @@ class RPCA(BaseEstimator, TransformerMixin):
         signal: NDArray,
         return_basis: boolean = False
     ) -> RPCA:
-        self.input_data = "2DArray"
         X, _ = self._prepare_data(signal=signal)
         A = np.zeros(X.shape, dtype=float)
 
-        if self.input_data == "2DArray":
+        if not((len(signal.shape) == 1) or (signal.shape[1] in [0, 1])):
             result = [X, A]
-        elif self.input_data == "1DArray":
-            result = [X.flatten(), A.flatten()]
         else:
-            raise ValueError("Data shape not recognized")
-
+            result = [X.flatten(), A.flatten()]
+            
         if return_basis:
             U, _, Vh = np.linalg.svd(X, full_matrices=False, compute_uv=True)
             result += [U, Vh]

@@ -196,7 +196,6 @@ class TemporalRPCA(RPCA):
         errors = np.full((self.maxIter,), np.nan, dtype = float)
 
         for iteration in range(self.maxIter):
-            # print(f"iteration={iteration}")
             X_temp = X.copy()
             A_temp = A.copy()
             L_temp = L.copy()
@@ -297,7 +296,6 @@ class TemporalRPCA(RPCA):
         signal : NDArray
             Observations
         """
-        self.input_data = "2DArray"
         D_init, n_add_values = self._prepare_data(signal=signal)
         omega = ~np.isnan(D_init)
         proj_D = utils.impute_nans(D_init, method="median")
@@ -318,9 +316,9 @@ class TemporalRPCA(RPCA):
         A = res[1]
         errors = res[2]
 
-        if self.input_data == "2DArray":
+        if not((len(signal.shape) == 1) or (signal.shape[1] in [0, 1])):
             result =  [X, A, errors]
-        elif self.input_data == "1DArray":
+        else:
             X = X.T
             A = A.T
             
@@ -332,8 +330,7 @@ class TemporalRPCA(RPCA):
             ts_X = ts_X[~np.isnan(ts_X)]
             ts_A = ts_A[~np.isnan(ts_A)]
             result = [ts_X, ts_A, errors]
-        else:
-            raise ValueError("input data type not recognized")
+
         if return_basis:
             result+=res[3:]
         return tuple(result)
@@ -412,15 +409,16 @@ class OnlineTemporalRPCA(TemporalRPCA):
         ----------
         signal : NDArray
         """
+
         D_init, n_add_values = self._prepare_data(signal=signal)
         burnin = self.burnin
-        nwin = self.nwin
 
         m, n = D_init.shape
-        Lhat, Shat, _ = super().fit_transform(signal=D_init[:, :burnin], return_basis=False)
+
+        Lhat, Shat, errors_burnin = super().fit_transform(signal=D_init[:, :burnin], return_basis=False)
 
         proj_D = utils.impute_nans(D_init, method="median")
-        approx_rank = utils.approx_rank(proj_D[:, :burnin], th=0.99)
+        approx_rank = utils.approx_rank(proj_D[:, :burnin], threshold=0.99)
 
         _, sigmas_hat, _ = np.linalg.svd(Lhat)
 
@@ -441,6 +439,8 @@ class OnlineTemporalRPCA(TemporalRPCA):
         )
         U = Uhat[:, :approx_rank].dot(np.sqrt(np.diag(sigmas_hat[:approx_rank])))
         
+        nwin = self.nwin
+
         Vhat_win = Vhat[:, nwin:].copy()
 
         A = np.zeros((approx_rank, approx_rank))
@@ -461,17 +461,17 @@ class OnlineTemporalRPCA(TemporalRPCA):
                     Vhat_win[:, col],
                 )
 
-        lv = np.empty(shape=(n - burnin, proj_D.shape[1]), dtype=float)
+        lv = np.empty(shape=(Uhat.shape[1], n - burnin), dtype=float)
 
         Shat_grow = np.full(D_init.shape, np.nan, dtype=float)
-        Shat_grow[:, Shat.shape[1]] = Shat
+        Shat_grow[:, :Shat.shape[1]] = Shat
 
-        n_vhat = Vhat.shape[1]
-        Vhat_win_grow = np.full((m, (n - burnin) + n_vhat), np.nan, dtype=float)
-        Vhat_win_grow[:, Vhat_win.shape[1]] = Vhat_win
+        m_vhat, n_vhat = Vhat_win.shape
+        Vhat_win_grow = np.full((m_vhat, (n - burnin) + n_vhat), np.nan, dtype=float)
+        Vhat_win_grow[:, :n_vhat] = Vhat_win
 
         Lhat_grow = np.full(D_init.shape, np.nan, dtype=float)
-        Lhat_grow[:, Lhat.shape[1]] = Lhat
+        Lhat_grow[:, :Lhat.shape[1]] = Lhat
 
 
         for row in range(burnin, n):
@@ -485,11 +485,11 @@ class OnlineTemporalRPCA(TemporalRPCA):
                 self.list_periods,
                 Lhat_grow[:, (row-burnin):((row-burnin) + Lhat.shape[1])],
             )
-            lv[row - burnin, :] = vi
+            lv[:, row - burnin] = vi
 
-            Shat_grow[:, row] = si.reshape(m, 1)
+            Shat_grow[:, row] = si
             
-            Vhat_win_grow[:, n_vhat + (row-burnin)] = vi.reshape(approx_rank, 1)
+            Vhat_win_grow[:, n_vhat + (row-burnin)] = vi
             vi_delete = Vhat_win_grow[:, (row-burnin)]
             Vhat_win = Vhat_win_grow[:, (row-burnin+1):((row-burnin) + n_vhat)]
 
@@ -510,20 +510,18 @@ class OnlineTemporalRPCA(TemporalRPCA):
                     - np.outer(proj_D[:, row - nwin] - Shat_grow[:, row - nwin], vi_delete)
                 )
             U = utils.update_col(self.online_tau, U, A, B)
-            Lhat_grow[:, row] = U.dot(vi).reshape(m, 1)
+            Lhat_grow[:, row] = U.dot(vi)
 
         if n_add_values > 0:
             Lhat_grow.flat[-n_add_values:] = np.nan
             Shat_grow.flat[-n_add_values:] = np.nan
 
-        if self.input_data == "2DArray":
-            return Lhat_grow, Shat_grow
-        elif self.input_data == "1DArray":
+        if not((len(signal.shape) == 1) or (signal.shape[1] in [0, 1])):
+            return Lhat_grow, Shat_grow, errors_burnin
+        else:
             ts_X = Lhat_grow.flatten()
             ts_A = Shat_grow.flatten()
-            return ts_X[~np.isnan(ts_X)], ts_A[~np.isnan(ts_A)]
-        else:
-            raise ValueError("Data shape not recognized")
+            return ts_X[~np.isnan(ts_X)], ts_A[~np.isnan(ts_A)], errors_burnin
 
     def get_params(self):
         return {

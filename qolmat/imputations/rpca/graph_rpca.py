@@ -80,7 +80,6 @@ class GraphRPCA(RPCA):
        signal : NDArray
             Observations
         """
-        self.input_data = "2DArray"
         D_init, n_add_values = self._prepare_data(signal=signal)
         omega = ~np.isnan(D_init)
         proj_D = utils.impute_nans(D_init, method="median")
@@ -133,9 +132,9 @@ class GraphRPCA(RPCA):
 
         A = D_init - X
         
-        if self.input_data == "2DArray":
+        if not((len(signal.shape) == 1) or (signal.shape[1] in [0, 1])):
             result =  [X, A, errors]
-        elif self.input_data == "1DArray":
+        else:
             X = X.T
             A = A.T
             
@@ -147,8 +146,7 @@ class GraphRPCA(RPCA):
             ts_X = ts_X[~np.isnan(ts_X)]
             ts_A = ts_A[~np.isnan(ts_A)]
             result = [ts_X, ts_A, errors]
-        else:
-            raise ValueError("input data type not recognized")
+
         return tuple(result)
 
 
