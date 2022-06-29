@@ -424,13 +424,13 @@ def solve_projection(
     for a, b in zip(list_lams, list_periods):
         sums_rk += 2 * a * X[:, -b]
 
-    tmp = np.linalg.inv(L.T @ L + lam1 * I + L.T @ L * sums)
+    tmp_inv = np.linalg.inv(L.T @ L + lam1 * I + L.T @ L * sums)
 
     for _ in range(maxIter):
         rtemp = r
         etemp = e
 
-        r = tmp @ L.T @ (z - e + sums_rk)
+        r = tmp_inv @ L.T @ (z - e + sums_rk)
         e = soft_thresholding(z - L.dot(r), lam2)
 
         stopc = max(np.linalg.norm(r - rtemp), np.linalg.norm(e - etemp)) / n

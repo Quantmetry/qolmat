@@ -126,7 +126,7 @@ class GraphRPCA(RPCA):
                     )
                 break
 
-            t = t_past
+            t_past = t
 
         self.errors = errors
 
